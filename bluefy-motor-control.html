@@ -214,6 +214,7 @@
         return {
           id,
           deviceName: id === "left" ? "ZellerShoe-L" : "ZellerShoe-R",
+          device: null,
           characteristic: null,
           slider: section.querySelector('[data-role="powerSlider"]'),
           numberInput: section.querySelector('[data-role="powerNumber"]'),
@@ -255,11 +256,12 @@
         try {
           shoe.statusText.textContent = "Choosing device...";
           const device = await navigator.bluetooth.requestDevice({
-            filters: [{ name: shoe.deviceName }],
+            filters: [{ namePrefix: "ZellerShoe" }],
             optionalServices: [serviceUuid]
           });
 
           device.addEventListener("gattserverdisconnected", () => {
+            shoe.device = null;
             shoe.characteristic = null;
             shoe.statusText.textContent = "Disconnected";
           });
@@ -267,9 +269,11 @@
           shoe.statusText.textContent = "Connecting...";
           const server = await device.gatt.connect();
           const service = await server.getPrimaryService(serviceUuid);
+          shoe.device = device;
           shoe.characteristic = await service.getCharacteristic(powerUuid);
 
-          shoe.statusText.textContent = "Connected";
+          const name = device.name || "unknown device";
+          shoe.statusText.textContent = name === shoe.deviceName ? "Connected" : `Connected to ${name}`;
           if (running) await writePower(shoe, shoe.slider.value);
         } catch (error) {
           shoe.statusText.textContent = error.message;
