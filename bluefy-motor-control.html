@@ -20,7 +20,7 @@
       }
 
       main {
-        width: min(92vw, 420px);
+        width: min(94vw, 620px);
       }
 
       h1 {
@@ -29,8 +29,46 @@
         font-weight: 750;
       }
 
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .link-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #dbe5ec;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .link-row input {
+        width: 20px;
+        height: 20px;
+        accent-color: #16c172;
+      }
+
+      .shoes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .shoe {
+        min-width: 0;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+
       .value {
-        font-size: 72px;
+        font-size: 56px;
         font-weight: 800;
         line-height: 1;
         margin-bottom: 18px;
@@ -96,39 +134,70 @@
         color: #b8c7d1;
         font-size: 15px;
       }
+
+      @media (max-width: 560px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .shoes {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>ZellerShoe Motor</h1>
-      <div class="value"><span id="powerText">0</span>%</div>
-      <label for="powerSlider">Power</label>
-      <input id="powerSlider" type="range" min="0" max="255" value="0">
-      <label for="powerNumber">PWM value, 0-255</label>
-      <input id="powerNumber" type="number" min="0" max="255" value="0" inputmode="numeric">
-      <button id="connectButton">Connect</button>
+      <div class="topbar">
+        <h1>ZellerShoe Motor</h1>
+        <label class="link-row">
+          <input id="linkToggle" type="checkbox">
+          Link controls
+        </label>
+      </div>
+
+      <div class="shoes">
+        <section class="shoe" data-shoe="left">
+          <h2>Left</h2>
+          <div class="value"><span data-role="powerText">0</span>%</div>
+          <label>Power</label>
+          <input data-role="powerSlider" type="range" min="0" max="255" value="0">
+          <label>PWM value, 0-255</label>
+          <input data-role="powerNumber" type="number" min="0" max="255" value="0" inputmode="numeric">
+          <button data-role="connectButton">Connect Left</button>
+          <div data-role="status" class="status">Disconnected</div>
+        </section>
+
+        <section class="shoe" data-shoe="right">
+          <h2>Right</h2>
+          <div class="value"><span data-role="powerText">0</span>%</div>
+          <label>Power</label>
+          <input data-role="powerSlider" type="range" min="0" max="255" value="0">
+          <label>PWM value, 0-255</label>
+          <input data-role="powerNumber" type="number" min="0" max="255" value="0" inputmode="numeric">
+          <button data-role="connectButton">Connect Right</button>
+          <div data-role="status" class="status">Disconnected</div>
+        </section>
+      </div>
+
       <div class="controls">
         <button id="startButton">Start</button>
         <button id="stopButton" class="stop">Stop</button>
       </div>
-      <div id="status" class="status">Disconnected</div>
     </main>
 
     <script>
       const serviceUuid = "19b10000-e8f2-537e-4f6c-d104768a1214";
       const powerUuid = "19b10001-e8f2-537e-4f6c-d104768a1214";
 
-      const slider = document.querySelector("#powerSlider");
-      const numberInput = document.querySelector("#powerNumber");
-      const powerText = document.querySelector("#powerText");
-      const connectButton = document.querySelector("#connectButton");
+      const linkToggle = document.querySelector("#linkToggle");
       const startButton = document.querySelector("#startButton");
       const stopButton = document.querySelector("#stopButton");
-      const statusText = document.querySelector("#status");
 
-      let powerCharacteristic = null;
       let lastNonZeroPower = 128;
       let running = false;
+      const shoes = {};
 
       function clampPower(value) {
         const parsed = Number.parseInt(value, 10);
@@ -140,85 +209,122 @@
         return Math.round((Number(value) / 255) * 100);
       }
 
-      function renderPower() {
-        powerText.textContent = percentFromPower(slider.value);
-        numberInput.value = slider.value;
+      function makeShoe(section) {
+        const id = section.dataset.shoe;
+        return {
+          id,
+          deviceName: id === "left" ? "ZellerShoe-L" : "ZellerShoe-R",
+          characteristic: null,
+          slider: section.querySelector('[data-role="powerSlider"]'),
+          numberInput: section.querySelector('[data-role="powerNumber"]'),
+          powerText: section.querySelector('[data-role="powerText"]'),
+          connectButton: section.querySelector('[data-role="connectButton"]'),
+          statusText: section.querySelector('[data-role="status"]')
+        };
       }
 
-      async function writePower(value) {
-        if (!powerCharacteristic) return;
+      function renderPower(shoe) {
+        shoe.powerText.textContent = percentFromPower(shoe.slider.value);
+        shoe.numberInput.value = shoe.slider.value;
+      }
+
+      async function writePower(shoe, value) {
+        if (!shoe.characteristic) return;
         const data = new Uint8Array([clampPower(value)]);
-        await powerCharacteristic.writeValue(data);
+        await shoe.characteristic.writeValue(data);
       }
 
-      async function setPower(value, shouldRun = running) {
+      async function setShoePower(shoe, value, shouldRun = running) {
         const power = clampPower(value);
-        slider.value = power;
-        numberInput.value = power;
+        shoe.slider.value = power;
+        shoe.numberInput.value = power;
 
         if (power > 0) lastNonZeroPower = power;
-        renderPower();
+        renderPower(shoe);
 
         if (shouldRun) {
-          await writePower(power);
+          await writePower(shoe, power);
         }
       }
 
-      connectButton.addEventListener("click", async () => {
+      async function setBothPower(value, shouldRun = running) {
+        await Promise.all(Object.values(shoes).map((shoe) => setShoePower(shoe, value, shouldRun)));
+      }
+
+      async function connectShoe(shoe) {
         try {
-          statusText.textContent = "Choosing device...";
+          shoe.statusText.textContent = "Choosing device...";
           const device = await navigator.bluetooth.requestDevice({
-            filters: [{ name: "ZellerShoe" }],
+            filters: [{ name: shoe.deviceName }],
             optionalServices: [serviceUuid]
           });
 
           device.addEventListener("gattserverdisconnected", () => {
-            powerCharacteristic = null;
-            statusText.textContent = "Disconnected";
+            shoe.characteristic = null;
+            shoe.statusText.textContent = "Disconnected";
           });
 
-          statusText.textContent = "Connecting...";
+          shoe.statusText.textContent = "Connecting...";
           const server = await device.gatt.connect();
           const service = await server.getPrimaryService(serviceUuid);
-          powerCharacteristic = await service.getCharacteristic(powerUuid);
+          shoe.characteristic = await service.getCharacteristic(powerUuid);
 
-          statusText.textContent = "Connected";
-          if (running) await writePower(slider.value);
+          shoe.statusText.textContent = "Connected";
+          if (running) await writePower(shoe, shoe.slider.value);
         } catch (error) {
-          statusText.textContent = error.message;
+          shoe.statusText.textContent = error.message;
         }
-      });
+      }
 
-      slider.addEventListener("input", async () => {
-        try {
-          await setPower(slider.value);
-        } catch (error) {
-          statusText.textContent = error.message;
-        }
-      });
+      document.querySelectorAll(".shoe").forEach((section) => {
+        const shoe = makeShoe(section);
+        shoes[shoe.id] = shoe;
 
-      numberInput.addEventListener("change", async () => {
-        try {
-          await setPower(numberInput.value);
-        } catch (error) {
-          statusText.textContent = error.message;
-        }
+        shoe.connectButton.addEventListener("click", () => connectShoe(shoe));
+
+        shoe.slider.addEventListener("input", async () => {
+          try {
+            if (linkToggle.checked) {
+              await setBothPower(shoe.slider.value);
+            } else {
+              await setShoePower(shoe, shoe.slider.value);
+            }
+          } catch (error) {
+            shoe.statusText.textContent = error.message;
+          }
+        });
+
+        shoe.numberInput.addEventListener("change", async () => {
+          try {
+            if (linkToggle.checked) {
+              await setBothPower(shoe.numberInput.value);
+            } else {
+              await setShoePower(shoe, shoe.numberInput.value);
+            }
+          } catch (error) {
+            shoe.statusText.textContent = error.message;
+          }
+        });
+
+        renderPower(shoe);
       });
 
       startButton.addEventListener("click", async () => {
         running = true;
-        const power = clampPower(slider.value) || lastNonZeroPower;
-        await setPower(power, true);
-        statusText.textContent = powerCharacteristic ? "Running" : "Set power, not connected";
+        await Promise.all(Object.values(shoes).map(async (shoe) => {
+          const power = clampPower(shoe.slider.value) || lastNonZeroPower;
+          await setShoePower(shoe, power, true);
+          shoe.statusText.textContent = shoe.characteristic ? "Running" : "Set power, not connected";
+        }));
       });
 
       stopButton.addEventListener("click", async () => {
         running = false;
-        await writePower(0);
-        statusText.textContent = powerCharacteristic ? "Stopped" : "Stopped, not connected";
+        await Promise.all(Object.values(shoes).map(async (shoe) => {
+          await writePower(shoe, 0);
+          shoe.statusText.textContent = shoe.characteristic ? "Stopped" : "Stopped, not connected";
+        }));
       });
-
-      renderPower();
     </script>
   </body>
 </html>

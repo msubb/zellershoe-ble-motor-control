@@ -1,6 +1,7 @@
 #include <ArduinoBLE.h>
 
 const int MOTOR_PIN = D7;
+const char *DEVICE_NAME = "ZellerShoe-L"; // Change to "ZellerShoe-R" before uploading to the right shoe.
 
 // Custom BLE UUIDs. The web page uses these exact values.
 BLEService motorService("19b10000-e8f2-537e-4f6c-d104768a1214");
@@ -46,8 +47,8 @@ void setup() {
     }
   }
 
-  BLE.setLocalName("ZellerShoe");
-  BLE.setDeviceName("ZellerShoe");
+  BLE.setLocalName(DEVICE_NAME);
+  BLE.setDeviceName(DEVICE_NAME);
   BLE.setAdvertisedService(motorService);
 
   motorService.addCharacteristic(powerCharacteristic);
@@ -58,7 +59,8 @@ void setup() {
 
   BLE.advertise();
 
-  Serial.println("ZellerShoe BLE motor power test");
+  Serial.print(DEVICE_NAME);
+  Serial.println(" BLE motor power test");
   Serial.println("Write 0-255 to motorPower characteristic");
 }
 
