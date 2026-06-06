@@ -31,6 +31,8 @@ int parsePowerValue(const unsigned char *data, int length) {
 }
 
 void setup() {
+  analogWriteResolution(8);
+
   pinMode(MOTOR_PIN, OUTPUT);
   setMotorPower(0);
 
