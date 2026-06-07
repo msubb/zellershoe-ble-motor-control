@@ -20,11 +20,12 @@
       }
 
       main {
-        width: min(94vw, 680px);
+        width: min(94vw, 720px);
+        padding: 28px 0;
       }
 
       h1 {
-        margin: 0 0 24px;
+        margin: 0;
         font-size: 28px;
         font-weight: 750;
       }
@@ -37,7 +38,7 @@
         margin-bottom: 18px;
       }
 
-      .link-row {
+      .toggle-row {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -46,7 +47,7 @@
         font-weight: 700;
       }
 
-      .link-row input {
+      .toggle-row input {
         width: 20px;
         height: 20px;
         accent-color: #16c172;
@@ -58,13 +59,31 @@
         gap: 18px;
       }
 
-      .shoe {
+      details.shoe,
+      details.panel {
         min-width: 0;
       }
 
-      h2 {
+      summary {
+        cursor: pointer;
+        font-weight: 800;
+        list-style-position: inside;
+      }
+
+      .shoe > summary {
         margin: 0 0 12px;
         font-size: 20px;
+      }
+
+      .panel {
+        border-top: 1px solid #293844;
+        margin-top: 18px;
+        padding-top: 14px;
+      }
+
+      .panel > summary {
+        color: #dbe5ec;
+        font-size: 16px;
       }
 
       .value {
@@ -74,17 +93,18 @@
         margin-bottom: 18px;
       }
 
-      input[type="range"] {
-        width: 100%;
-        accent-color: #16c172;
-      }
-
-      label {
+      label,
+      .field-label {
         display: block;
         margin: 18px 0 8px;
         color: #b8c7d1;
         font-size: 14px;
         font-weight: 650;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: #16c172;
       }
 
       input[type="number"] {
@@ -124,6 +144,12 @@
         color: #f7f5ef;
       }
 
+      button.subtle {
+        background: #1c2a33;
+        color: #dbe5ec;
+        font-size: 15px;
+      }
+
       button.stop {
         background: #ff5a5f;
         color: #160406;
@@ -143,7 +169,68 @@
         line-height: 1.45;
       }
 
+      .error {
+        min-height: 22px;
+        margin-top: 8px;
+        color: #ffb4b8;
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .saved {
+        min-height: 18px;
+        margin-top: 4px;
+        color: #8fa7b7;
+        font-size: 13px;
+      }
+
+      .readout {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .readout-row {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 34px;
+        border-bottom: 1px solid #263540;
+        color: #dbe5ec;
+        font-size: 15px;
+      }
+
+      .readout-row span:first-child {
+        color: #93aaba;
+        font-weight: 700;
+      }
+
+      .pill {
+        border-radius: 999px;
+        background: #283845;
+        color: #dbe5ec;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+
+      .pill.good {
+        background: #174532;
+        color: #b9ffd9;
+      }
+
+      .pill.warn {
+        background: #54282b;
+        color: #ffd7da;
+      }
+
       @media (max-width: 560px) {
+        body {
+          place-items: start center;
+        }
+
         .topbar {
           align-items: flex-start;
           flex-direction: column;
@@ -152,6 +239,15 @@
         .shoes {
           grid-template-columns: 1fr;
         }
+
+        .readout-row {
+          grid-template-columns: 88px minmax(0, 1fr);
+        }
+
+        .readout-row .pill {
+          grid-column: 2;
+          justify-self: start;
+        }
       }
     </style>
   </head>
@@ -159,15 +255,15 @@
     <main>
       <div class="topbar">
         <h1>ZellerShoe Motor</h1>
-        <label class="link-row">
-          <input id="linkToggle" type="checkbox">
-          Link controls
+        <label class="toggle-row">
+          <input id="syncShoesToggle" type="checkbox">
+          Sync Shoes
         </label>
       </div>
 
       <div class="shoes">
-        <section class="shoe" data-shoe="left">
-          <h2>Left</h2>
+        <details class="shoe" data-shoe="left" open>
+          <summary>Left</summary>
           <div class="value"><span data-role="powerText">--</span>%</div>
           <label>Power</label>
           <input data-role="powerSlider" type="range" min="0" max="255" value="64" disabled>
@@ -178,10 +274,93 @@
             <button data-role="syncButton" class="secondary" disabled>Sync</button>
           </div>
           <div data-role="status" class="status">Disconnected</div>
-        </section>
 
-        <section class="shoe" data-shoe="right">
-          <h2>Right</h2>
+          <details class="panel">
+            <summary>Advanced</summary>
+
+            <details class="panel">
+              <summary>Sensor Calibration</summary>
+              <label class="toggle-row">
+                <input data-role="customToggle" type="checkbox" disabled>
+                Use Custom Calibration
+              </label>
+              <label class="toggle-row">
+                <input data-role="activationToggle" type="checkbox" disabled>
+                Decoupled Activation
+              </label>
+              <div data-role="calibrationStatus" class="status">Calibration unavailable</div>
+              <div data-role="calibrationError" class="error"></div>
+
+              <div data-cal-field="heelOn">
+                <span class="field-label">Heel On (default 330 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="330" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="330" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="heelOff">
+                <span class="field-label">Heel Off (default 380 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="380" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="380" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="ballOn">
+                <span class="field-label">Ball On (default 500 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="500" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="500" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="ballOff">
+                <span class="field-label">Ball Off (default 560 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="560" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="560" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="combinedOn">
+                <span class="field-label">Combined On (default 820 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="820" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="820" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="combinedOff">
+                <span class="field-label">Combined Off (default 860 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="860" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="860" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div class="button-row">
+                <button data-role="syncCalibrationButton" disabled>Sync Calibration</button>
+                <button data-role="resetCalibrationButton" class="secondary" disabled>Reset Calibration</button>
+              </div>
+              <button data-role="copyCalibrationButton" class="subtle" disabled>Copy Calibration</button>
+            </details>
+
+            <details class="panel">
+              <summary>Sensor Readout</summary>
+              <div class="button-row">
+                <button data-role="startReadoutButton" disabled>Start Readings</button>
+                <button data-role="stopReadoutButton" class="secondary" disabled>Stop Readings</button>
+              </div>
+              <div data-role="readoutStatus" class="status">Readings stopped</div>
+              <div class="readout">
+                <div class="readout-row"><span>Heel</span><strong data-role="heelValue">--</strong><em data-role="heelState" class="pill">--</em></div>
+                <div class="readout-row"><span>Ball</span><strong data-role="ballValue">--</strong><em data-role="ballState" class="pill">--</em></div>
+                <div class="readout-row"><span>Combined</span><strong data-role="combinedValue">--</strong><em data-role="footState" class="pill">--</em></div>
+                <div class="readout-row"><span>Mode</span><strong data-role="modeValue">--</strong><em data-role="customState" class="pill">--</em></div>
+                <div class="readout-row"><span>Motor</span><strong data-role="motorValue">--</strong><em data-role="sourceValue" class="pill">--</em></div>
+                <div class="readout-row"><span>Last</span><strong data-role="lastReadingValue">never</strong><em data-role="freshnessState" class="pill">--</em></div>
+              </div>
+            </details>
+          </details>
+        </details>
+
+        <details class="shoe" data-shoe="right" open>
+          <summary>Right</summary>
           <div class="value"><span data-role="powerText">--</span>%</div>
           <label>Power</label>
           <input data-role="powerSlider" type="range" min="0" max="255" value="64" disabled>
@@ -192,7 +371,90 @@
             <button data-role="syncButton" class="secondary" disabled>Sync</button>
           </div>
           <div data-role="status" class="status">Disconnected</div>
-        </section>
+
+          <details class="panel">
+            <summary>Advanced</summary>
+
+            <details class="panel">
+              <summary>Sensor Calibration</summary>
+              <label class="toggle-row">
+                <input data-role="customToggle" type="checkbox" disabled>
+                Use Custom Calibration
+              </label>
+              <label class="toggle-row">
+                <input data-role="activationToggle" type="checkbox" disabled>
+                Decoupled Activation
+              </label>
+              <div data-role="calibrationStatus" class="status">Calibration unavailable</div>
+              <div data-role="calibrationError" class="error"></div>
+
+              <div data-cal-field="heelOn">
+                <span class="field-label">Heel On (default 330 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="330" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="330" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="heelOff">
+                <span class="field-label">Heel Off (default 380 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="380" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="380" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="ballOn">
+                <span class="field-label">Ball On (default 500 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="500" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="500" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="ballOff">
+                <span class="field-label">Ball Off (default 560 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="560" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="560" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="combinedOn">
+                <span class="field-label">Combined On (default 820 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="820" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="820" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div data-cal-field="combinedOff">
+                <span class="field-label">Combined Off (default 860 ohms)</span>
+                <input data-role="calSlider" type="range" min="0" max="2000" step="10" value="860" disabled>
+                <input data-role="calNumber" type="number" min="0" max="2000" step="10" value="860" inputmode="numeric" disabled>
+                <div data-role="savedValue" class="saved"></div>
+              </div>
+
+              <div class="button-row">
+                <button data-role="syncCalibrationButton" disabled>Sync Calibration</button>
+                <button data-role="resetCalibrationButton" class="secondary" disabled>Reset Calibration</button>
+              </div>
+              <button data-role="copyCalibrationButton" class="subtle" disabled>Copy Calibration</button>
+            </details>
+
+            <details class="panel">
+              <summary>Sensor Readout</summary>
+              <div class="button-row">
+                <button data-role="startReadoutButton" disabled>Start Readings</button>
+                <button data-role="stopReadoutButton" class="secondary" disabled>Stop Readings</button>
+              </div>
+              <div data-role="readoutStatus" class="status">Readings stopped</div>
+              <div class="readout">
+                <div class="readout-row"><span>Heel</span><strong data-role="heelValue">--</strong><em data-role="heelState" class="pill">--</em></div>
+                <div class="readout-row"><span>Ball</span><strong data-role="ballValue">--</strong><em data-role="ballState" class="pill">--</em></div>
+                <div class="readout-row"><span>Combined</span><strong data-role="combinedValue">--</strong><em data-role="footState" class="pill">--</em></div>
+                <div class="readout-row"><span>Mode</span><strong data-role="modeValue">--</strong><em data-role="customState" class="pill">--</em></div>
+                <div class="readout-row"><span>Motor</span><strong data-role="motorValue">--</strong><em data-role="sourceValue" class="pill">--</em></div>
+                <div class="readout-row"><span>Last</span><strong data-role="lastReadingValue">never</strong><em data-role="freshnessState" class="pill">--</em></div>
+              </div>
+            </details>
+          </details>
+        </details>
       </div>
 
       <div class="controls">
@@ -205,39 +467,177 @@
       const serviceUuid = "19b10000-e8f2-537e-4f6c-d104768a1214";
       const commandUuid = "19b10001-e8f2-537e-4f6c-d104768a1214";
       const stateUuid = "19b10002-e8f2-537e-4f6c-d104768a1214";
+      const calibrationUuid = "19b10003-e8f2-537e-4f6c-d104768a1214";
+      const sensorReadoutUuid = "19b10004-e8f2-537e-4f6c-d104768a1214";
 
-      const COMMAND_SYNC = 1;
-      const COMMAND_START = 2;
-      const COMMAND_LIVE = 3;
-      const COMMAND_STOP = 4;
+      const COMMAND_SYNC_POWER = 1;
+      const COMMAND_START_OVERRIDE = 2;
+      const COMMAND_LIVE_POWER = 3;
+      const COMMAND_STOP_OVERRIDE = 4;
+      const COMMAND_SET_CUSTOM_CALIBRATION = 5;
+      const COMMAND_SYNC_CALIBRATION = 6;
+      const COMMAND_RESET_CALIBRATION = 7;
+      const COMMAND_START_SENSOR_READOUT = 8;
+      const COMMAND_STOP_SENSOR_READOUT = 9;
 
-      const linkToggle = document.querySelector("#linkToggle");
+      const ACTIVATION_COUPLED = 0;
+      const ACTIVATION_DECOUPLED = 1;
+
+      const SOURCE_NONE = 0;
+      const SOURCE_PRESSURE = 1;
+      const SOURCE_BLE_TEST = 2;
+
+      const factoryCalibration = {
+        customEnabled: false,
+        activationMode: ACTIVATION_COUPLED,
+        heelOn: 330,
+        heelOff: 380,
+        ballOn: 500,
+        ballOff: 560,
+        combinedOn: 820,
+        combinedOff: 860
+      };
+
+      const calibrationFields = ["heelOn", "heelOff", "ballOn", "ballOff", "combinedOn", "combinedOff"];
+      const syncShoesToggle = document.querySelector("#syncShoesToggle");
       const startButton = document.querySelector("#startButton");
       const stopButton = document.querySelector("#stopButton");
       const shoes = {};
 
-      function clampPower(value) {
+      function clampNumber(value, min, max) {
         const parsed = Number.parseInt(value, 10);
-        if (Number.isNaN(parsed)) return 0;
-        return Math.max(0, Math.min(255, parsed));
+        if (Number.isNaN(parsed)) return min;
+        return Math.max(min, Math.min(max, parsed));
+      }
+
+      function clampPower(value) {
+        return clampNumber(value, 0, 255);
+      }
+
+      function clampOhms(value) {
+        return clampNumber(value, 0, 2000);
       }
 
       function percentFromPower(value) {
         return Math.round((Number(value) / 255) * 100);
       }
 
+      function cloneCalibration(calibration) {
+        return { ...calibration };
+      }
+
+      function normalizeCalibration(calibration) {
+        const next = cloneCalibration(calibration);
+        next.customEnabled = Boolean(next.customEnabled);
+        next.activationMode = next.activationMode === ACTIVATION_DECOUPLED ? ACTIVATION_DECOUPLED : ACTIVATION_COUPLED;
+        next.heelOn = clampOhms(next.heelOn);
+        next.heelOff = Math.max(clampOhms(next.heelOff), next.heelOn);
+        next.ballOn = clampOhms(next.ballOn);
+        next.ballOff = Math.max(clampOhms(next.ballOff), next.ballOn);
+        next.combinedOn = clampOhms(next.combinedOn);
+        next.combinedOff = Math.max(clampOhms(next.combinedOff), next.combinedOn);
+        return next;
+      }
+
+      function calibrationsEqual(a, b) {
+        return calibrationFields.every((field) => Number(a[field]) === Number(b[field])) &&
+          Boolean(a.customEnabled) === Boolean(b.customEnabled) &&
+          Number(a.activationMode) === Number(b.activationMode);
+      }
+
+      function readUint16(view, index) {
+        return view.getUint16(index, true);
+      }
+
+      function writeUint16(view, index, value) {
+        view.setUint16(index, clampOhms(value), true);
+      }
+
+      function parseCalibrationValue(dataView) {
+        if (dataView.byteLength < 14) {
+          throw new Error("CAL-BAD-PAYLOAD");
+        }
+
+        return normalizeCalibration({
+          customEnabled: dataView.getUint8(0) === 1,
+          activationMode: dataView.getUint8(1),
+          heelOn: readUint16(dataView, 2),
+          heelOff: readUint16(dataView, 4),
+          ballOn: readUint16(dataView, 6),
+          ballOff: readUint16(dataView, 8),
+          combinedOn: readUint16(dataView, 10),
+          combinedOff: readUint16(dataView, 12)
+        });
+      }
+
+      function calibrationCommandPayload(calibration) {
+        const normalized = normalizeCalibration(calibration);
+        const data = new Uint8Array(15);
+        const view = new DataView(data.buffer);
+        data[0] = COMMAND_SYNC_CALIBRATION;
+        data[1] = normalized.customEnabled ? 1 : 0;
+        data[2] = normalized.activationMode;
+        writeUint16(view, 3, normalized.heelOn);
+        writeUint16(view, 5, normalized.heelOff);
+        writeUint16(view, 7, normalized.ballOn);
+        writeUint16(view, 9, normalized.ballOff);
+        writeUint16(view, 11, normalized.combinedOn);
+        writeUint16(view, 13, normalized.combinedOff);
+        return data;
+      }
+
+      function withTimeout(promise, timeoutMs, errorCode) {
+        let timer;
+        const timeout = new Promise((resolve, reject) => {
+          timer = setTimeout(() => reject(new Error(errorCode)), timeoutMs);
+        });
+
+        return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+      }
+
+      function formatOhms(value) {
+        return value >= 65535 ? ">65535 ohms" : `${value} ohms`;
+      }
+
+      function modeText(mode) {
+        return mode === ACTIVATION_DECOUPLED ? "Decoupled" : "Coupled";
+      }
+
+      function sourceText(source) {
+        if (source === SOURCE_PRESSURE) return "Pressure";
+        if (source === SOURCE_BLE_TEST) return "BLE Test";
+        return "None";
+      }
+
       function makeShoe(section) {
         const id = section.dataset.shoe;
+        const calibrationInputs = {};
+        section.querySelectorAll("[data-cal-field]").forEach((fieldEl) => {
+          calibrationInputs[fieldEl.dataset.calField] = {
+            slider: fieldEl.querySelector('[data-role="calSlider"]'),
+            numberInput: fieldEl.querySelector('[data-role="calNumber"]'),
+            savedValue: fieldEl.querySelector('[data-role="savedValue"]')
+          };
+        });
+
         return {
           id,
           deviceName: id === "left" ? "ZellerShoe-L" : "ZellerShoe-R",
           device: null,
           commandCharacteristic: null,
           stateCharacteristic: null,
+          calibrationCharacteristic: null,
+          sensorReadoutCharacteristic: null,
           ready: false,
+          calibrationReady: false,
           overrideActive: false,
           savedPower: 64,
           activePower: 0,
+          savedCalibration: cloneCalibration(factoryCalibration),
+          pendingCalibration: cloneCalibration(factoryCalibration),
+          readoutRequested: false,
+          lastReadingAt: null,
+          copyConfirmUntil: 0,
           liveTimer: null,
           writeQueue: Promise.resolve(),
           slider: section.querySelector('[data-role="powerSlider"]'),
@@ -245,7 +645,32 @@
           powerText: section.querySelector('[data-role="powerText"]'),
           connectButton: section.querySelector('[data-role="connectButton"]'),
           syncButton: section.querySelector('[data-role="syncButton"]'),
-          statusText: section.querySelector('[data-role="status"]')
+          statusText: section.querySelector('[data-role="status"]'),
+          customToggle: section.querySelector('[data-role="customToggle"]'),
+          activationToggle: section.querySelector('[data-role="activationToggle"]'),
+          calibrationStatus: section.querySelector('[data-role="calibrationStatus"]'),
+          calibrationError: section.querySelector('[data-role="calibrationError"]'),
+          calibrationInputs,
+          syncCalibrationButton: section.querySelector('[data-role="syncCalibrationButton"]'),
+          resetCalibrationButton: section.querySelector('[data-role="resetCalibrationButton"]'),
+          copyCalibrationButton: section.querySelector('[data-role="copyCalibrationButton"]'),
+          startReadoutButton: section.querySelector('[data-role="startReadoutButton"]'),
+          stopReadoutButton: section.querySelector('[data-role="stopReadoutButton"]'),
+          readoutStatus: section.querySelector('[data-role="readoutStatus"]'),
+          readout: {
+            heelValue: section.querySelector('[data-role="heelValue"]'),
+            heelState: section.querySelector('[data-role="heelState"]'),
+            ballValue: section.querySelector('[data-role="ballValue"]'),
+            ballState: section.querySelector('[data-role="ballState"]'),
+            combinedValue: section.querySelector('[data-role="combinedValue"]'),
+            footState: section.querySelector('[data-role="footState"]'),
+            modeValue: section.querySelector('[data-role="modeValue"]'),
+            customState: section.querySelector('[data-role="customState"]'),
+            motorValue: section.querySelector('[data-role="motorValue"]'),
+            sourceValue: section.querySelector('[data-role="sourceValue"]'),
+            lastReadingValue: section.querySelector('[data-role="lastReadingValue"]'),
+            freshnessState: section.querySelector('[data-role="freshnessState"]')
+          }
         };
       }
 
@@ -253,18 +678,14 @@
         return Object.values(shoes).filter((shoe) => shoe.ready);
       }
 
+      function otherShoe(shoe) {
+        return shoes[shoe.id === "left" ? "right" : "left"];
+      }
+
       function updateGlobalButtons() {
         const anyReady = readyShoes().length > 0;
         startButton.disabled = !anyReady;
         stopButton.disabled = !anyReady;
-      }
-
-      function setReady(shoe, ready) {
-        shoe.ready = ready;
-        shoe.slider.disabled = !ready;
-        shoe.numberInput.disabled = !ready;
-        shoe.syncButton.disabled = !ready;
-        updateGlobalButtons();
       }
 
       function renderPower(shoe) {
@@ -277,6 +698,16 @@
         shoe.slider.value = power;
         shoe.numberInput.value = power;
         renderPower(shoe);
+      }
+
+      function setReady(shoe, ready) {
+        shoe.ready = ready;
+        shoe.slider.disabled = !ready;
+        shoe.numberInput.disabled = !ready;
+        shoe.syncButton.disabled = !ready;
+        shoe.startReadoutButton.disabled = !ready;
+        updateGlobalButtons();
+        updateCalibrationControls(shoe);
       }
 
       function renderState(shoe) {
@@ -299,9 +730,105 @@
         renderState(shoe);
       }
 
+      function calibrationDirty(shoe) {
+        return shoe.calibrationReady && !calibrationsEqual(shoe.savedCalibration, shoe.pendingCalibration);
+      }
+
+      function setCalibrationError(shoe, code) {
+        shoe.calibrationError.textContent = code || "";
+      }
+
+      function setCalibrationValues(shoe, calibration) {
+        const normalized = normalizeCalibration(calibration);
+        shoe.customToggle.checked = normalized.customEnabled;
+        shoe.activationToggle.checked = normalized.activationMode === ACTIVATION_DECOUPLED;
+
+        calibrationFields.forEach((field) => {
+          const controls = shoe.calibrationInputs[field];
+          controls.slider.value = normalized[field];
+          controls.numberInput.value = normalized[field];
+        });
+      }
+
+      function enforcePendingHysteresis(shoe) {
+        const cal = shoe.pendingCalibration;
+        cal.heelOff = Math.max(cal.heelOff, cal.heelOn);
+        cal.ballOff = Math.max(cal.ballOff, cal.ballOn);
+        cal.combinedOff = Math.max(cal.combinedOff, cal.combinedOn);
+      }
+
+      function updateCalibrationControls(shoe) {
+        const editable = shoe.ready && shoe.calibrationReady && shoe.pendingCalibration.customEnabled;
+        const dirty = calibrationDirty(shoe);
+        shoe.customToggle.disabled = !shoe.ready || !shoe.calibrationReady;
+        shoe.activationToggle.disabled = !editable;
+        shoe.syncCalibrationButton.disabled = !editable || !dirty;
+        shoe.resetCalibrationButton.disabled = !shoe.ready || !shoe.calibrationReady;
+        shoe.startReadoutButton.disabled = !shoe.ready;
+        shoe.stopReadoutButton.disabled = !shoe.ready || !shoe.readoutRequested;
+
+        calibrationFields.forEach((field) => {
+          const controls = shoe.calibrationInputs[field];
+          controls.slider.disabled = !editable;
+          controls.numberInput.disabled = !editable;
+          const saved = shoe.savedCalibration[field];
+          const pending = shoe.pendingCalibration[field];
+          controls.savedValue.textContent = dirty && saved !== pending ? `Saved: ${saved} ohms` : "";
+        });
+
+        if (!shoe.ready) {
+          shoe.calibrationStatus.textContent = "Calibration unavailable";
+        } else if (!shoe.calibrationReady) {
+          shoe.calibrationStatus.textContent = "Calibration unavailable";
+        } else if (dirty) {
+          shoe.calibrationStatus.textContent = "Changes pending - press Sync Calibration";
+        } else if (shoe.savedCalibration.customEnabled) {
+          shoe.calibrationStatus.textContent = "Custom calibration saved";
+        } else {
+          shoe.calibrationStatus.textContent = "Using factory calibration";
+        }
+
+        updateCopyButton(shoe);
+      }
+
+      function updateCopyButton(shoe) {
+        const target = otherShoe(shoe);
+        const canCopy = shoe.calibrationReady &&
+          target &&
+          target.ready &&
+          target.calibrationReady &&
+          !calibrationDirty(shoe);
+        const targetName = target ? (target.id === "left" ? "Left" : "Right") : "Other Shoe";
+        const waiting = Date.now() < shoe.copyConfirmUntil;
+
+        shoe.copyCalibrationButton.disabled = !canCopy;
+        shoe.copyCalibrationButton.textContent = waiting
+          ? `Tap again to copy to ${targetName}`
+          : `Copy Calibration to ${targetName}`;
+      }
+
+      function applyCalibration(shoe, calibration) {
+        const normalized = normalizeCalibration(calibration);
+        shoe.savedCalibration = cloneCalibration(normalized);
+        shoe.pendingCalibration = cloneCalibration(normalized);
+        shoe.calibrationReady = true;
+        setCalibrationValues(shoe, normalized);
+        setCalibrationError(shoe, "");
+        updateCalibrationControls(shoe);
+      }
+
       async function readDeviceState(shoe) {
         const value = await shoe.stateCharacteristic.readValue();
         applyState(shoe, value);
+      }
+
+      async function readCalibration(shoe) {
+        const value = await withTimeout(
+          shoe.calibrationCharacteristic.readValue(),
+          5000,
+          "CAL-READ-TIMEOUT"
+        );
+        applyCalibration(shoe, parseCalibrationValue(value));
       }
 
       async function writeCharacteristic(characteristic, data) {
@@ -313,27 +840,33 @@
         await characteristic.writeValue(data);
       }
 
-      function sendCommand(shoe, command, power = 0) {
+      function sendRawCommand(shoe, payload) {
         if (!shoe.ready || !shoe.commandCharacteristic) {
           return Promise.resolve();
         }
 
-        if (command !== COMMAND_LIVE && shoe.liveTimer) {
+        if (payload[0] !== COMMAND_LIVE_POWER && shoe.liveTimer) {
           clearTimeout(shoe.liveTimer);
           shoe.liveTimer = null;
         }
 
-        const payload = new Uint8Array([command, clampPower(power)]);
         shoe.writeQueue = shoe.writeQueue
           .catch(() => {})
           .then(() => writeCharacteristic(shoe.commandCharacteristic, payload))
-          .then(() => readDeviceState(shoe))
           .catch((error) => {
             shoe.statusText.textContent = error.message;
             throw error;
           });
 
         return shoe.writeQueue;
+      }
+
+      async function sendCommand(shoe, command, value = 0) {
+        const payload = new Uint8Array([command, clampPower(value)]);
+        await sendRawCommand(shoe, payload);
+        if ([COMMAND_SYNC_POWER, COMMAND_START_OVERRIDE, COMMAND_LIVE_POWER, COMMAND_STOP_OVERRIDE].includes(command)) {
+          await readDeviceState(shoe);
+        }
       }
 
       function scheduleLiveAdjustment(shoe) {
@@ -347,7 +880,7 @@
 
         shoe.liveTimer = setTimeout(() => {
           shoe.liveTimer = null;
-          sendCommand(shoe, COMMAND_LIVE, shoe.slider.value).catch((error) => {
+          sendCommand(shoe, COMMAND_LIVE_POWER, shoe.slider.value).catch((error) => {
             shoe.statusText.textContent = error.message;
           });
         }, 120);
@@ -363,12 +896,30 @@
           shoe.liveTimer = null;
         }
 
-        await sendCommand(shoe, COMMAND_LIVE, shoe.slider.value);
+        await sendCommand(shoe, COMMAND_LIVE_POWER, shoe.slider.value);
+      }
+
+      function resetShoeUi(shoe) {
+        shoe.device = null;
+        shoe.commandCharacteristic = null;
+        shoe.stateCharacteristic = null;
+        shoe.calibrationCharacteristic = null;
+        shoe.sensorReadoutCharacteristic = null;
+        shoe.overrideActive = false;
+        shoe.calibrationReady = false;
+        shoe.readoutRequested = false;
+        shoe.lastReadingAt = null;
+        setReady(shoe, false);
+        shoe.powerText.textContent = "--";
+        shoe.statusText.textContent = "Disconnected";
+        shoe.readoutStatus.textContent = "Readings stopped";
+        setCalibrationError(shoe, "");
+        updateLastReading(shoe);
       }
 
       async function connectShoe(shoe) {
         try {
-          setReady(shoe, false);
+          resetShoeUi(shoe);
           shoe.statusText.textContent = "Choosing device...";
           const device = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: "ZellerShoe" }],
@@ -381,13 +932,7 @@
           }
 
           device.addEventListener("gattserverdisconnected", () => {
-            shoe.device = null;
-            shoe.commandCharacteristic = null;
-            shoe.stateCharacteristic = null;
-            shoe.overrideActive = false;
-            setReady(shoe, false);
-            shoe.powerText.textContent = "--";
-            shoe.statusText.textContent = "Disconnected";
+            resetShoeUi(shoe);
           });
 
           shoe.statusText.textContent = "Connecting...";
@@ -397,6 +942,8 @@
           shoe.device = device;
           shoe.commandCharacteristic = await service.getCharacteristic(commandUuid);
           shoe.stateCharacteristic = await service.getCharacteristic(stateUuid);
+          shoe.calibrationCharacteristic = await service.getCharacteristic(calibrationUuid);
+          shoe.sensorReadoutCharacteristic = await service.getCharacteristic(sensorReadoutUuid);
 
           try {
             await shoe.stateCharacteristic.startNotifications();
@@ -404,22 +951,50 @@
               applyState(shoe, event.target.value);
             });
           } catch (error) {
-            // Read-after-write still keeps the UI in sync when notifications are unavailable.
+          }
+
+          try {
+            await shoe.calibrationCharacteristic.startNotifications();
+            shoe.calibrationCharacteristic.addEventListener("characteristicvaluechanged", (event) => {
+              try {
+                applyCalibration(shoe, parseCalibrationValue(event.target.value));
+              } catch (error) {
+                setCalibrationError(shoe, "CAL-BAD-PAYLOAD");
+              }
+            });
+          } catch (error) {
+          }
+
+          try {
+            await shoe.sensorReadoutCharacteristic.startNotifications();
+            shoe.sensorReadoutCharacteristic.addEventListener("characteristicvaluechanged", (event) => {
+              applySensorReadout(shoe, event.target.value);
+            });
+          } catch (error) {
+            shoe.readoutStatus.textContent = "Readout notifications unavailable";
           }
 
           await readDeviceState(shoe);
           setReady(shoe, true);
           renderState(shoe);
+
+          try {
+            await readCalibration(shoe);
+          } catch (error) {
+            const code = error.message === "CAL-READ-TIMEOUT" ? "CAL-READ-TIMEOUT" : "CAL-READ-FAILED";
+            shoe.calibrationReady = false;
+            setCalibrationError(shoe, code);
+            updateCalibrationControls(shoe);
+          }
         } catch (error) {
-          setReady(shoe, false);
+          resetShoeUi(shoe);
           shoe.statusText.textContent = error.message;
         }
       }
 
-      async function syncShoe(shoe) {
-        await flushLiveAdjustment(shoe);
-        await sendCommand(shoe, COMMAND_SYNC, shoe.slider.value);
-        renderState(shoe);
+      async function syncPower(shoe) {
+        const targets = syncShoesToggle.checked ? readyShoes() : [shoe];
+        await Promise.all(targets.map((target) => sendCommand(target, COMMAND_SYNC_POWER, shoe.slider.value)));
       }
 
       async function setShoePowerFromInput(shoe, value, shouldFlush = false) {
@@ -435,8 +1010,169 @@
       }
 
       async function setLinkedPower(sourceShoe, value, shouldFlush = false) {
-        const targets = linkToggle.checked ? readyShoes() : [sourceShoe];
+        const targets = syncShoesToggle.checked ? readyShoes() : [sourceShoe];
         await Promise.all(targets.map((shoe) => setShoePowerFromInput(shoe, value, shouldFlush)));
+      }
+
+      async function setCustomCalibration(shoe, enabled) {
+        try {
+          setCalibrationError(shoe, "");
+          await sendRawCommand(shoe, new Uint8Array([COMMAND_SET_CUSTOM_CALIBRATION, enabled ? 1 : 0]));
+          await readCalibration(shoe);
+        } catch (error) {
+          setCalibrationError(shoe, "CAL-SYNC-FAILED");
+          updateCalibrationControls(shoe);
+        }
+      }
+
+      async function syncCalibration(shoe) {
+        try {
+          setCalibrationError(shoe, "");
+          const payload = calibrationCommandPayload(shoe.pendingCalibration);
+          await sendRawCommand(shoe, payload);
+          await readCalibration(shoe);
+        } catch (error) {
+          setCalibrationError(shoe, "CAL-SYNC-FAILED");
+          updateCalibrationControls(shoe);
+        }
+      }
+
+      async function resetCalibration(shoe) {
+        try {
+          setCalibrationError(shoe, "");
+          await sendRawCommand(shoe, new Uint8Array([COMMAND_RESET_CALIBRATION, 0]));
+          await readCalibration(shoe);
+        } catch (error) {
+          setCalibrationError(shoe, "CAL-RESET-FAILED");
+          updateCalibrationControls(shoe);
+        }
+      }
+
+      async function copyCalibration(shoe) {
+        const target = otherShoe(shoe);
+        if (!target || !target.ready || !target.calibrationReady || calibrationDirty(shoe)) {
+          updateCopyButton(shoe);
+          return;
+        }
+
+        const now = Date.now();
+        if (now > shoe.copyConfirmUntil) {
+          shoe.copyConfirmUntil = now + 5000;
+          updateCopyButton(shoe);
+          return;
+        }
+
+        shoe.copyConfirmUntil = 0;
+        try {
+          setCalibrationError(target, "");
+          await sendRawCommand(target, calibrationCommandPayload(shoe.savedCalibration));
+          await readCalibration(target);
+          target.calibrationStatus.textContent = `Copied from ${shoe.id === "left" ? "Left" : "Right"}`;
+        } catch (error) {
+          setCalibrationError(target, "CAL-SYNC-FAILED");
+        }
+        updateCopyButton(shoe);
+      }
+
+      function updatePendingField(shoe, field, value) {
+        shoe.pendingCalibration[field] = clampOhms(value);
+        enforcePendingHysteresis(shoe);
+        setCalibrationValues(shoe, shoe.pendingCalibration);
+        updateCalibrationControls(shoe);
+      }
+
+      function updatePendingActivation(shoe, decoupled) {
+        shoe.pendingCalibration.activationMode = decoupled ? ACTIVATION_DECOUPLED : ACTIVATION_COUPLED;
+        updateCalibrationControls(shoe);
+      }
+
+      async function startReadout(shoe) {
+        try {
+          await sendRawCommand(shoe, new Uint8Array([COMMAND_START_SENSOR_READOUT, 0]));
+          shoe.readoutRequested = true;
+          shoe.lastReadingAt = null;
+          shoe.readoutStatus.textContent = "Waiting for readings...";
+          updateCalibrationControls(shoe);
+          updateLastReading(shoe);
+        } catch (error) {
+          shoe.readoutStatus.textContent = error.message;
+        }
+      }
+
+      async function stopReadout(shoe) {
+        try {
+          await sendRawCommand(shoe, new Uint8Array([COMMAND_STOP_SENSOR_READOUT, 0]));
+        } catch (error) {
+        }
+        shoe.readoutRequested = false;
+        shoe.readoutStatus.textContent = "Readings stopped";
+        updateCalibrationControls(shoe);
+        updateLastReading(shoe);
+      }
+
+      function setPill(element, text, kind = "") {
+        element.textContent = text;
+        element.className = `pill ${kind}`.trim();
+      }
+
+      function applySensorReadout(shoe, dataView) {
+        if (dataView.byteLength < 10) {
+          shoe.readoutStatus.textContent = "READ-BAD-PAYLOAD";
+          return;
+        }
+
+        const heel = readUint16(dataView, 0);
+        const ball = readUint16(dataView, 2);
+        const combined = readUint16(dataView, 4);
+        const flags = dataView.getUint8(6);
+        const mode = dataView.getUint8(7);
+        const motorPower = dataView.getUint8(8);
+        const source = dataView.getUint8(9);
+        const heelLoaded = (flags & 0x01) !== 0;
+        const ballLoaded = (flags & 0x02) !== 0;
+        const footGrounded = (flags & 0x04) !== 0;
+        const customEnabled = (flags & 0x10) !== 0;
+
+        shoe.readoutRequested = true;
+        shoe.lastReadingAt = Date.now();
+        shoe.readout.heelValue.textContent = formatOhms(heel);
+        shoe.readout.ballValue.textContent = formatOhms(ball);
+        shoe.readout.combinedValue.textContent = formatOhms(combined);
+        shoe.readout.modeValue.textContent = modeText(mode);
+        shoe.readout.motorValue.textContent = motorPower > 0 ? `On at ${percentFromPower(motorPower)}%` : "Off";
+
+        setPill(shoe.readout.heelState, heelLoaded ? "Loaded" : "Lifted", heelLoaded ? "good" : "");
+        setPill(shoe.readout.ballState, ballLoaded ? "Loaded" : "Lifted", ballLoaded ? "good" : "");
+        setPill(shoe.readout.footState, footGrounded ? "Grounded" : "Lifted", footGrounded ? "good" : "");
+        setPill(shoe.readout.customState, customEnabled ? "Custom" : "Factory", customEnabled ? "good" : "");
+        setPill(shoe.readout.sourceValue, sourceText(source), source === SOURCE_NONE ? "" : "good");
+        updateLastReading(shoe);
+        updateCalibrationControls(shoe);
+      }
+
+      function updateLastReading(shoe) {
+        if (!shoe.readoutRequested) {
+          shoe.readout.lastReadingValue.textContent = "never";
+          setPill(shoe.readout.freshnessState, "--");
+          return;
+        }
+
+        if (!shoe.lastReadingAt) {
+          shoe.readout.lastReadingValue.textContent = "waiting";
+          setPill(shoe.readout.freshnessState, "Waiting");
+          return;
+        }
+
+        const ageSeconds = (Date.now() - shoe.lastReadingAt) / 1000;
+        shoe.readout.lastReadingValue.textContent = `${ageSeconds.toFixed(1)}s ago`;
+
+        if (ageSeconds > 3) {
+          shoe.readoutStatus.textContent = "No recent readings";
+          setPill(shoe.readout.freshnessState, "Stale", "warn");
+        } else {
+          shoe.readoutStatus.textContent = "Readings active";
+          setPill(shoe.readout.freshnessState, "Fresh", "good");
+        }
       }
 
       document.querySelectorAll(".shoe").forEach((section) => {
@@ -444,7 +1180,14 @@
         shoes[shoe.id] = shoe;
 
         shoe.connectButton.addEventListener("click", () => connectShoe(shoe));
-        shoe.syncButton.addEventListener("click", () => syncShoe(shoe));
+        shoe.syncButton.addEventListener("click", () => syncPower(shoe));
+        shoe.customToggle.addEventListener("change", () => setCustomCalibration(shoe, shoe.customToggle.checked));
+        shoe.activationToggle.addEventListener("change", () => updatePendingActivation(shoe, shoe.activationToggle.checked));
+        shoe.syncCalibrationButton.addEventListener("click", () => syncCalibration(shoe));
+        shoe.resetCalibrationButton.addEventListener("click", () => resetCalibration(shoe));
+        shoe.copyCalibrationButton.addEventListener("click", () => copyCalibration(shoe));
+        shoe.startReadoutButton.addEventListener("click", () => startReadout(shoe));
+        shoe.stopReadoutButton.addEventListener("click", () => stopReadout(shoe));
 
         shoe.slider.addEventListener("input", async () => {
           try {
@@ -469,18 +1212,35 @@
             shoe.statusText.textContent = error.message;
           }
         });
+
+        calibrationFields.forEach((field) => {
+          const controls = shoe.calibrationInputs[field];
+          controls.slider.addEventListener("input", () => updatePendingField(shoe, field, controls.slider.value));
+          controls.numberInput.addEventListener("change", () => updatePendingField(shoe, field, controls.numberInput.value));
+        });
+
+        setCalibrationValues(shoe, shoe.pendingCalibration);
+        updateCalibrationControls(shoe);
+        updateLastReading(shoe);
       });
 
       startButton.addEventListener("click", async () => {
-        await Promise.all(readyShoes().map((shoe) => sendCommand(shoe, COMMAND_START, shoe.slider.value)));
+        await Promise.all(readyShoes().map((shoe) => sendCommand(shoe, COMMAND_START_OVERRIDE, shoe.slider.value)));
       });
 
       stopButton.addEventListener("click", async () => {
         await Promise.all(readyShoes().map(async (shoe) => {
           await flushLiveAdjustment(shoe);
-          await sendCommand(shoe, COMMAND_STOP, 0);
+          await sendCommand(shoe, COMMAND_STOP_OVERRIDE, 0);
         }));
       });
+
+      setInterval(() => {
+        Object.values(shoes).forEach((shoe) => {
+          updateLastReading(shoe);
+          updateCopyButton(shoe);
+        });
+      }, 500);
     </script>
   </body>
 </html>
