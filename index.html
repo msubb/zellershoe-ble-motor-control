@@ -1021,6 +1021,7 @@
           await readCalibration(shoe);
         } catch (error) {
           setCalibrationError(shoe, "CAL-SYNC-FAILED");
+          setCalibrationValues(shoe, shoe.pendingCalibration);
           updateCalibrationControls(shoe);
         }
       }

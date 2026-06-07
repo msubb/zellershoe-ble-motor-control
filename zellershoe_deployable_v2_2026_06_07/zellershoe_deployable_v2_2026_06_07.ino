@@ -310,14 +310,22 @@ void setSavedPower(uint8_t power) {
     return;
   }
 
-  savedPower = power;
-  savedPowerStored = savePower(savedPower);
+  if (savePower(power)) {
+    savedPower = power;
+    savedPowerStored = true;
+  } else {
+    savedPowerStored = false;
+  }
 }
 
 void setSensorCalibration(SensorCalibration calibration) {
   SensorCalibration normalized = normalizedCalibration(calibration);
-  savedCalibration = normalized;
-  calibrationStored = saveCalibration(savedCalibration);
+  if (saveCalibration(normalized)) {
+    savedCalibration = normalized;
+    calibrationStored = true;
+  } else {
+    calibrationStored = false;
+  }
   publishCalibration();
 }
 
