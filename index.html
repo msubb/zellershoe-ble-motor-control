@@ -120,8 +120,7 @@
         padding: 0 14px;
       }
 
-      .button-row,
-      .controls {
+      .button-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
@@ -273,6 +272,10 @@
             <button data-role="connectButton">Connect Left</button>
             <button data-role="syncButton" class="secondary" disabled>Sync</button>
           </div>
+          <div class="button-row">
+            <button data-role="startTestButton" disabled>Start</button>
+            <button data-role="stopTestButton" class="stop" disabled>Stop</button>
+          </div>
           <div data-role="status" class="status">Disconnected</div>
 
           <details class="panel">
@@ -370,6 +373,10 @@
             <button data-role="connectButton">Connect Right</button>
             <button data-role="syncButton" class="secondary" disabled>Sync</button>
           </div>
+          <div class="button-row">
+            <button data-role="startTestButton" disabled>Start</button>
+            <button data-role="stopTestButton" class="stop" disabled>Stop</button>
+          </div>
           <div data-role="status" class="status">Disconnected</div>
 
           <details class="panel">
@@ -457,10 +464,6 @@
         </details>
       </div>
 
-      <div class="controls">
-        <button id="startButton" disabled>Start</button>
-        <button id="stopButton" class="stop" disabled>Stop</button>
-      </div>
     </main>
 
     <script>
@@ -500,8 +503,6 @@
 
       const calibrationFields = ["heelOn", "heelOff", "ballOn", "ballOff", "combinedOn", "combinedOff"];
       const syncShoesToggle = document.querySelector("#syncShoesToggle");
-      const startButton = document.querySelector("#startButton");
-      const stopButton = document.querySelector("#stopButton");
       const shoes = {};
 
       function clampNumber(value, min, max) {
@@ -645,6 +646,8 @@
           powerText: section.querySelector('[data-role="powerText"]'),
           connectButton: section.querySelector('[data-role="connectButton"]'),
           syncButton: section.querySelector('[data-role="syncButton"]'),
+          startTestButton: section.querySelector('[data-role="startTestButton"]'),
+          stopTestButton: section.querySelector('[data-role="stopTestButton"]'),
           statusText: section.querySelector('[data-role="status"]'),
           customToggle: section.querySelector('[data-role="customToggle"]'),
           activationToggle: section.querySelector('[data-role="activationToggle"]'),
@@ -682,12 +685,6 @@
         return shoes[shoe.id === "left" ? "right" : "left"];
       }
 
-      function updateGlobalButtons() {
-        const anyReady = readyShoes().length > 0;
-        startButton.disabled = !anyReady;
-        stopButton.disabled = !anyReady;
-      }
-
       function renderPower(shoe) {
         shoe.powerText.textContent = percentFromPower(shoe.slider.value);
         shoe.numberInput.value = shoe.slider.value;
@@ -705,8 +702,9 @@
         shoe.slider.disabled = !ready;
         shoe.numberInput.disabled = !ready;
         shoe.syncButton.disabled = !ready;
+        shoe.startTestButton.disabled = !ready;
+        shoe.stopTestButton.disabled = !ready;
         shoe.startReadoutButton.disabled = !ready;
-        updateGlobalButtons();
         updateCalibrationControls(shoe);
       }
 
@@ -1014,6 +1012,22 @@
         await Promise.all(targets.map((shoe) => setShoePowerFromInput(shoe, value, shouldFlush)));
       }
 
+      function testTargetShoes(sourceShoe) {
+        return syncShoesToggle.checked ? readyShoes() : [sourceShoe];
+      }
+
+      async function startTest(sourceShoe) {
+        const power = sourceShoe.slider.value;
+        await Promise.all(testTargetShoes(sourceShoe).map((shoe) => sendCommand(shoe, COMMAND_START_OVERRIDE, power)));
+      }
+
+      async function stopTest(sourceShoe) {
+        await Promise.all(testTargetShoes(sourceShoe).map(async (shoe) => {
+          await flushLiveAdjustment(shoe);
+          await sendCommand(shoe, COMMAND_STOP_OVERRIDE, 0);
+        }));
+      }
+
       async function setCustomCalibration(shoe, enabled) {
         try {
           setCalibrationError(shoe, "");
@@ -1182,6 +1196,8 @@
 
         shoe.connectButton.addEventListener("click", () => connectShoe(shoe));
         shoe.syncButton.addEventListener("click", () => syncPower(shoe));
+        shoe.startTestButton.addEventListener("click", () => startTest(shoe));
+        shoe.stopTestButton.addEventListener("click", () => stopTest(shoe));
         shoe.customToggle.addEventListener("change", () => setCustomCalibration(shoe, shoe.customToggle.checked));
         shoe.activationToggle.addEventListener("change", () => updatePendingActivation(shoe, shoe.activationToggle.checked));
         shoe.syncCalibrationButton.addEventListener("click", () => syncCalibration(shoe));
@@ -1223,17 +1239,6 @@
         setCalibrationValues(shoe, shoe.pendingCalibration);
         updateCalibrationControls(shoe);
         updateLastReading(shoe);
-      });
-
-      startButton.addEventListener("click", async () => {
-        await Promise.all(readyShoes().map((shoe) => sendCommand(shoe, COMMAND_START_OVERRIDE, shoe.slider.value)));
-      });
-
-      stopButton.addEventListener("click", async () => {
-        await Promise.all(readyShoes().map(async (shoe) => {
-          await flushLiveAdjustment(shoe);
-          await sendCommand(shoe, COMMAND_STOP_OVERRIDE, 0);
-        }));
       });
 
       setInterval(() => {

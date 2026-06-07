@@ -80,7 +80,8 @@ Sensor readout characteristic:
 Open `index.html` from GitHub Pages in Bluefy on iPhone, connect to each shoe, and wait for the page to read the device's saved value. The page does not save its startup value to the shoe.
 
 - **Sync** saves the current slider value without running the motor.
-- **Start** saves the current slider value and runs BLE Test Override.
+- **Start** on a shoe saves the current slider value and runs BLE Test Override for that shoe.
+- With **Sync Shoes** enabled, either shoe's **Start** or **Stop** controls all connected shoes.
 - Slider changes during BLE Test Override are live and saved.
 - **Stop** exits BLE Test Override; normal pressure activation resumes immediately.
 - **Advanced** is collapsed by default per shoe.
