@@ -20,7 +20,7 @@
       }
 
       main {
-        width: min(94vw, 620px);
+        width: min(94vw, 680px);
       }
 
       h1 {
@@ -79,13 +79,6 @@
         accent-color: #16c172;
       }
 
-      .controls {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-top: 18px;
-      }
-
       label {
         display: block;
         margin: 18px 0 8px;
@@ -105,6 +98,14 @@
         font-size: 20px;
         font-weight: 700;
         padding: 0 14px;
+      }
+
+      .button-row,
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 18px;
       }
 
       button {
@@ -128,11 +129,18 @@
         color: #160406;
       }
 
+      button:disabled,
+      input:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
       .status {
-        min-height: 24px;
+        min-height: 44px;
         margin-top: 16px;
         color: #b8c7d1;
         font-size: 15px;
+        line-height: 1.45;
       }
 
       @media (max-width: 560px) {
@@ -160,43 +168,52 @@
       <div class="shoes">
         <section class="shoe" data-shoe="left">
           <h2>Left</h2>
-          <div class="value"><span data-role="powerText">0</span>%</div>
+          <div class="value"><span data-role="powerText">--</span>%</div>
           <label>Power</label>
-          <input data-role="powerSlider" type="range" min="0" max="255" value="0">
+          <input data-role="powerSlider" type="range" min="0" max="255" value="64" disabled>
           <label>PWM value, 0-255</label>
-          <input data-role="powerNumber" type="number" min="0" max="255" value="0" inputmode="numeric">
-          <button data-role="connectButton">Connect Left</button>
+          <input data-role="powerNumber" type="number" min="0" max="255" value="64" inputmode="numeric" disabled>
+          <div class="button-row">
+            <button data-role="connectButton">Connect Left</button>
+            <button data-role="syncButton" class="secondary" disabled>Sync</button>
+          </div>
           <div data-role="status" class="status">Disconnected</div>
         </section>
 
         <section class="shoe" data-shoe="right">
           <h2>Right</h2>
-          <div class="value"><span data-role="powerText">0</span>%</div>
+          <div class="value"><span data-role="powerText">--</span>%</div>
           <label>Power</label>
-          <input data-role="powerSlider" type="range" min="0" max="255" value="0">
+          <input data-role="powerSlider" type="range" min="0" max="255" value="64" disabled>
           <label>PWM value, 0-255</label>
-          <input data-role="powerNumber" type="number" min="0" max="255" value="0" inputmode="numeric">
-          <button data-role="connectButton">Connect Right</button>
+          <input data-role="powerNumber" type="number" min="0" max="255" value="64" inputmode="numeric" disabled>
+          <div class="button-row">
+            <button data-role="connectButton">Connect Right</button>
+            <button data-role="syncButton" class="secondary" disabled>Sync</button>
+          </div>
           <div data-role="status" class="status">Disconnected</div>
         </section>
       </div>
 
       <div class="controls">
-        <button id="startButton">Start</button>
-        <button id="stopButton" class="stop">Stop</button>
+        <button id="startButton" disabled>Start</button>
+        <button id="stopButton" class="stop" disabled>Stop</button>
       </div>
     </main>
 
     <script>
       const serviceUuid = "19b10000-e8f2-537e-4f6c-d104768a1214";
-      const powerUuid = "19b10001-e8f2-537e-4f6c-d104768a1214";
+      const commandUuid = "19b10001-e8f2-537e-4f6c-d104768a1214";
+      const stateUuid = "19b10002-e8f2-537e-4f6c-d104768a1214";
+
+      const COMMAND_SYNC = 1;
+      const COMMAND_START = 2;
+      const COMMAND_LIVE = 3;
+      const COMMAND_STOP = 4;
 
       const linkToggle = document.querySelector("#linkToggle");
       const startButton = document.querySelector("#startButton");
       const stopButton = document.querySelector("#stopButton");
-
-      let lastNonZeroPower = 128;
-      let running = false;
       const shoes = {};
 
       function clampPower(value) {
@@ -215,13 +232,39 @@
           id,
           deviceName: id === "left" ? "ZellerShoe-L" : "ZellerShoe-R",
           device: null,
-          characteristic: null,
+          commandCharacteristic: null,
+          stateCharacteristic: null,
+          ready: false,
+          overrideActive: false,
+          savedPower: 64,
+          activePower: 0,
+          liveTimer: null,
+          writeQueue: Promise.resolve(),
           slider: section.querySelector('[data-role="powerSlider"]'),
           numberInput: section.querySelector('[data-role="powerNumber"]'),
           powerText: section.querySelector('[data-role="powerText"]'),
           connectButton: section.querySelector('[data-role="connectButton"]'),
+          syncButton: section.querySelector('[data-role="syncButton"]'),
           statusText: section.querySelector('[data-role="status"]')
         };
+      }
+
+      function readyShoes() {
+        return Object.values(shoes).filter((shoe) => shoe.ready);
+      }
+
+      function updateGlobalButtons() {
+        const anyReady = readyShoes().length > 0;
+        startButton.disabled = !anyReady;
+        stopButton.disabled = !anyReady;
+      }
+
+      function setReady(shoe, ready) {
+        shoe.ready = ready;
+        shoe.slider.disabled = !ready;
+        shoe.numberInput.disabled = !ready;
+        shoe.syncButton.disabled = !ready;
+        updateGlobalButtons();
       }
 
       function renderPower(shoe) {
@@ -229,55 +272,171 @@
         shoe.numberInput.value = shoe.slider.value;
       }
 
-      async function writePower(shoe, value) {
-        if (!shoe.characteristic) return;
-        const data = new Uint8Array([clampPower(value)]);
-        await shoe.characteristic.writeValue(data);
-      }
-
-      async function setShoePower(shoe, value, shouldRun = running) {
+      function setUiPower(shoe, value) {
         const power = clampPower(value);
         shoe.slider.value = power;
         shoe.numberInput.value = power;
-
-        if (power > 0) lastNonZeroPower = power;
         renderPower(shoe);
-
-        if (shouldRun) {
-          await writePower(shoe, power);
-        }
       }
 
-      async function setBothPower(value, shouldRun = running) {
-        await Promise.all(Object.values(shoes).map((shoe) => setShoePower(shoe, value, shouldRun)));
+      function renderState(shoe) {
+        const status = shoe.overrideActive
+          ? `Testing at ${percentFromPower(shoe.activePower)}%, saved ${percentFromPower(shoe.savedPower)}%`
+          : `Ready, saved ${percentFromPower(shoe.savedPower)}%`;
+
+        shoe.statusText.textContent = status;
+      }
+
+      function applyState(shoe, dataView) {
+        if (dataView.byteLength < 3) {
+          throw new Error("Device state was incomplete");
+        }
+
+        shoe.savedPower = dataView.getUint8(0);
+        shoe.overrideActive = dataView.getUint8(1) === 1;
+        shoe.activePower = dataView.getUint8(2);
+        setUiPower(shoe, shoe.overrideActive ? shoe.activePower : shoe.savedPower);
+        renderState(shoe);
+      }
+
+      async function readDeviceState(shoe) {
+        const value = await shoe.stateCharacteristic.readValue();
+        applyState(shoe, value);
+      }
+
+      async function writeCharacteristic(characteristic, data) {
+        if (typeof characteristic.writeValueWithResponse === "function") {
+          await characteristic.writeValueWithResponse(data);
+          return;
+        }
+
+        await characteristic.writeValue(data);
+      }
+
+      function sendCommand(shoe, command, power = 0) {
+        if (!shoe.ready || !shoe.commandCharacteristic) {
+          return Promise.resolve();
+        }
+
+        if (command !== COMMAND_LIVE && shoe.liveTimer) {
+          clearTimeout(shoe.liveTimer);
+          shoe.liveTimer = null;
+        }
+
+        const payload = new Uint8Array([command, clampPower(power)]);
+        shoe.writeQueue = shoe.writeQueue
+          .catch(() => {})
+          .then(() => writeCharacteristic(shoe.commandCharacteristic, payload))
+          .then(() => readDeviceState(shoe))
+          .catch((error) => {
+            shoe.statusText.textContent = error.message;
+            throw error;
+          });
+
+        return shoe.writeQueue;
+      }
+
+      function scheduleLiveAdjustment(shoe) {
+        if (!shoe.overrideActive) {
+          return;
+        }
+
+        if (shoe.liveTimer) {
+          clearTimeout(shoe.liveTimer);
+        }
+
+        shoe.liveTimer = setTimeout(() => {
+          shoe.liveTimer = null;
+          sendCommand(shoe, COMMAND_LIVE, shoe.slider.value).catch((error) => {
+            shoe.statusText.textContent = error.message;
+          });
+        }, 120);
+      }
+
+      async function flushLiveAdjustment(shoe) {
+        if (!shoe.overrideActive) {
+          return;
+        }
+
+        if (shoe.liveTimer) {
+          clearTimeout(shoe.liveTimer);
+          shoe.liveTimer = null;
+        }
+
+        await sendCommand(shoe, COMMAND_LIVE, shoe.slider.value);
       }
 
       async function connectShoe(shoe) {
         try {
+          setReady(shoe, false);
           shoe.statusText.textContent = "Choosing device...";
           const device = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: "ZellerShoe" }],
             optionalServices: [serviceUuid]
           });
 
+          const name = device.name || "unknown device";
+          if (device.name && device.name !== shoe.deviceName) {
+            throw new Error(`Selected ${name}, expected ${shoe.deviceName}`);
+          }
+
           device.addEventListener("gattserverdisconnected", () => {
             shoe.device = null;
-            shoe.characteristic = null;
+            shoe.commandCharacteristic = null;
+            shoe.stateCharacteristic = null;
+            shoe.overrideActive = false;
+            setReady(shoe, false);
+            shoe.powerText.textContent = "--";
             shoe.statusText.textContent = "Disconnected";
           });
 
           shoe.statusText.textContent = "Connecting...";
           const server = await device.gatt.connect();
           const service = await server.getPrimaryService(serviceUuid);
-          shoe.device = device;
-          shoe.characteristic = await service.getCharacteristic(powerUuid);
 
-          const name = device.name || "unknown device";
-          shoe.statusText.textContent = name === shoe.deviceName ? "Connected" : `Connected to ${name}`;
-          if (running) await writePower(shoe, shoe.slider.value);
+          shoe.device = device;
+          shoe.commandCharacteristic = await service.getCharacteristic(commandUuid);
+          shoe.stateCharacteristic = await service.getCharacteristic(stateUuid);
+
+          try {
+            await shoe.stateCharacteristic.startNotifications();
+            shoe.stateCharacteristic.addEventListener("characteristicvaluechanged", (event) => {
+              applyState(shoe, event.target.value);
+            });
+          } catch (error) {
+            // Read-after-write still keeps the UI in sync when notifications are unavailable.
+          }
+
+          await readDeviceState(shoe);
+          setReady(shoe, true);
+          renderState(shoe);
         } catch (error) {
+          setReady(shoe, false);
           shoe.statusText.textContent = error.message;
         }
+      }
+
+      async function syncShoe(shoe) {
+        await flushLiveAdjustment(shoe);
+        await sendCommand(shoe, COMMAND_SYNC, shoe.slider.value);
+        renderState(shoe);
+      }
+
+      async function setShoePowerFromInput(shoe, value, shouldFlush = false) {
+        setUiPower(shoe, value);
+
+        if (shoe.overrideActive) {
+          if (shouldFlush) {
+            await flushLiveAdjustment(shoe);
+          } else {
+            scheduleLiveAdjustment(shoe);
+          }
+        }
+      }
+
+      async function setLinkedPower(sourceShoe, value, shouldFlush = false) {
+        const targets = linkToggle.checked ? readyShoes() : [sourceShoe];
+        await Promise.all(targets.map((shoe) => setShoePowerFromInput(shoe, value, shouldFlush)));
       }
 
       document.querySelectorAll(".shoe").forEach((section) => {
@@ -285,14 +444,19 @@
         shoes[shoe.id] = shoe;
 
         shoe.connectButton.addEventListener("click", () => connectShoe(shoe));
+        shoe.syncButton.addEventListener("click", () => syncShoe(shoe));
 
         shoe.slider.addEventListener("input", async () => {
           try {
-            if (linkToggle.checked) {
-              await setBothPower(shoe.slider.value);
-            } else {
-              await setShoePower(shoe, shoe.slider.value);
-            }
+            await setLinkedPower(shoe, shoe.slider.value);
+          } catch (error) {
+            shoe.statusText.textContent = error.message;
+          }
+        });
+
+        shoe.slider.addEventListener("change", async () => {
+          try {
+            await setLinkedPower(shoe, shoe.slider.value, true);
           } catch (error) {
             shoe.statusText.textContent = error.message;
           }
@@ -300,33 +464,21 @@
 
         shoe.numberInput.addEventListener("change", async () => {
           try {
-            if (linkToggle.checked) {
-              await setBothPower(shoe.numberInput.value);
-            } else {
-              await setShoePower(shoe, shoe.numberInput.value);
-            }
+            await setLinkedPower(shoe, shoe.numberInput.value, true);
           } catch (error) {
             shoe.statusText.textContent = error.message;
           }
         });
-
-        renderPower(shoe);
       });
 
       startButton.addEventListener("click", async () => {
-        running = true;
-        await Promise.all(Object.values(shoes).map(async (shoe) => {
-          const power = clampPower(shoe.slider.value) || lastNonZeroPower;
-          await setShoePower(shoe, power, true);
-          shoe.statusText.textContent = shoe.characteristic ? "Running" : "Set power, not connected";
-        }));
+        await Promise.all(readyShoes().map((shoe) => sendCommand(shoe, COMMAND_START, shoe.slider.value)));
       });
 
       stopButton.addEventListener("click", async () => {
-        running = false;
-        await Promise.all(Object.values(shoes).map(async (shoe) => {
-          await writePower(shoe, 0);
-          shoe.statusText.textContent = shoe.characteristic ? "Stopped" : "Stopped, not connected";
+        await Promise.all(readyShoes().map(async (shoe) => {
+          await flushLiveAdjustment(shoe);
+          await sendCommand(shoe, COMMAND_STOP, 0);
         }));
       });
     </script>
