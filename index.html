@@ -253,7 +253,10 @@
   <body>
     <main>
       <div class="topbar">
-        <h1>Vibration Insoles Configurator</h1>
+        <div>
+          <h1>Vibration Insoles Configurator</h1>
+          <p style="margin: 4px 0 0; color: #93aaba; font-size: 14px;">~ 120 Hz</p>
+        </div>
         <label class="toggle-row">
           <input id="syncShoesToggle" type="checkbox">
           Sync Shoes
@@ -489,7 +492,6 @@
       const SOURCE_NONE = 0;
       const SOURCE_PRESSURE = 1;
       const SOURCE_BLE_TEST = 2;
-
       const factoryCalibration = {
         customEnabled: false,
         activationMode: ACTIVATION_COUPLED,
